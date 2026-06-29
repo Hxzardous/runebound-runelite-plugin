@@ -18,4 +18,4 @@ The plugin must not collect passwords, Jagex account data, private chat, invento
 
 Network summary lookups are disabled by default. When enabled by the user, the plugin sends explicit HTTPS GET requests only to the RuneBound summary endpoint and applies a local per-username cooldown.
 
-`Open RuneBound` and `Open Profile` open user-initiated rune-bound.net browser URLs only.
+`Open Profile` opens a user-initiated rune-bound.net browser URL only. The plugin does not call a RuneBound update endpoint.

@@ -41,6 +41,8 @@ public class RuneBoundSafetyTest
 		assertNull(RuneBoundUsername.normalize(null));
 		assertEquals("Name With Space", RuneBoundUsername.normalize("  Name With Space  "));
 		assertTrue(RuneBoundUsername.isLookupCandidate("Name With Space"));
+		assertFalse(RuneBoundUsername.isLookupCandidate("Name/Slash"));
+		assertFalse(RuneBoundUsername.isLookupCandidate("<bad>"));
 		assertFalse(RuneBoundUsername.isLookupCandidate(repeat("x", 65)));
 	}
 
@@ -67,7 +69,16 @@ public class RuneBoundSafetyTest
 	public void openProfileUrlEncodesUsernameSafely()
 	{
 		assertEquals("https://rune-bound.net/player/Name%20With%20Space", RuneBoundUrls.profileUrl("Name With Space"));
-		assertEquals("https://rune-bound.net/player/Name%2FSlash", RuneBoundUrls.profileUrl("Name/Slash"));
+		try
+		{
+			RuneBoundUrls.profileUrl("Name/Slash");
+		}
+		catch (IllegalArgumentException expected)
+		{
+			return;
+		}
+
+		throw new AssertionError("Expected path-like profile usernames to be rejected");
 	}
 
 	@Test
@@ -106,19 +117,23 @@ public class RuneBoundSafetyTest
 			"https://rune-bound.net/api/runelite/v1/players/Name%20With%20Space/summary",
 			RuneBoundUrls.summaryUrl("Name With Space")
 		);
-		assertEquals(
-			"https://rune-bound.net/api/runelite/v1/players/Name%2FSlash/summary",
-			RuneBoundUrls.summaryUrl("Name/Slash")
-		);
+		try
+		{
+			RuneBoundUrls.summaryUrl("Name/Slash");
+		}
+		catch (IllegalArgumentException expected)
+		{
+			return;
+		}
+
+		throw new AssertionError("Expected path-like summary usernames to be rejected");
 	}
 
 	@Test
 	public void browserActionUrlsStayOnRuneBoundPages()
 	{
-		assertEquals("https://rune-bound.net", RuneBoundUrls.homeUrl());
-		assertEquals("https://rune-bound.net/search", RuneBoundUrls.searchUrl());
-		assertFalse(RuneBoundUrls.homeUrl().contains("/api/"));
-		assertFalse(RuneBoundUrls.searchUrl().contains("/api/"));
+		assertEquals("https://rune-bound.net/player/RuneBounder", RuneBoundUrls.profileUrl("RuneBounder"));
+		assertFalse(RuneBoundUrls.profileUrl("RuneBounder").contains("/api/"));
 	}
 
 	@Test
@@ -168,6 +183,8 @@ public class RuneBoundSafetyTest
 		assertEquals(RuneBoundSummaryStatus.MALFORMED_CACHE, resultFromHttpStatus(200, summaryJsonWithStatus("malformed_cache")).getStatus());
 		assertEquals(RuneBoundSummaryStatus.INVALID_USERNAME, resultFromHttpStatus(400, invalidUsernameJson()).getStatus());
 		assertEquals(RuneBoundSummaryStatus.NOT_CACHED, resultFromHttpStatus(404, notCachedJson()).getStatus());
+		assertEquals(RuneBoundSummaryStatus.SERVER_ERROR, resultFromHttpStatus(404, genericNotFoundJson()).getStatus());
+		assertEquals("RuneBound summary endpoint unavailable", resultFromHttpStatus(404, genericNotFoundJson()).getMessage());
 		assertEquals(RuneBoundSummaryStatus.RATE_LIMITED, resultFromHttpStatus(429, "{}").getStatus());
 		assertEquals(RuneBoundSummaryStatus.SERVER_ERROR, resultFromHttpStatus(503, "{}").getStatus());
 		assertEquals(RuneBoundSummaryStatus.OFFLINE, RuneBoundSummaryResult.failedBeforeNetwork().getStatus());
@@ -214,7 +231,7 @@ public class RuneBoundSafetyTest
 		assertEquals("2,277", model.getTotalLevel());
 		assertEquals("460,000,000", model.getTotalXp());
 		assertEquals("Example Achievement", model.getRecentAchievements());
-		assertEquals("trusted_cached / Source Freshness / RuneBound Freshness", model.getFreshness());
+		assertEquals("Fresh", model.getFreshness());
 		assertTrue(model.canOpenProfile());
 	}
 
@@ -231,7 +248,7 @@ public class RuneBoundSafetyTest
 		);
 
 		assertEquals(
-			"Achievement 1\nAchievement 2\nAchievement 3\nAchievement 4\nAchievement 5",
+			"Achievement 1\nAchievement 2\nAchievement 3",
 			model.getRecentAchievements()
 		);
 	}
@@ -342,6 +359,37 @@ public class RuneBoundSafetyTest
 		assertEquals(result, cache.latestResult("sampleuser"));
 		assertEquals(Duration.ofMinutes(30), cache.remainingBeforeNextAttempt("SampleUser", now));
 		assertEquals(Duration.ZERO, cache.remainingBeforeNextAttempt("SampleUser", now.plus(Duration.ofMinutes(31))));
+	}
+
+	@Test
+	public void cooldownCacheDisplayDoesNotMoveLastLookup()
+	{
+		final RuneBoundSummaryCache cache = new RuneBoundSummaryCache();
+		final Instant endpointLookup = Instant.parse("2026-06-22T12:00:00Z");
+		final Instant blockedRefresh = endpointLookup.plus(Duration.ofMinutes(10));
+		final RuneBoundSummaryResult result = resultFromHttpStatus(200, okSummaryJson());
+
+		cache.markAttempt("SampleUser", endpointLookup);
+		cache.put("SampleUser", result, endpointLookup);
+
+		assertEquals(result, cache.freshResult("SampleUser", blockedRefresh));
+		assertEquals(result, cache.latestResult("SampleUser"));
+		assertEquals(Duration.ofMinutes(20), cache.remainingBeforeNextAttempt("SampleUser", blockedRefresh));
+		assertEquals(endpointLookup, cache.lastAttempt("SampleUser"));
+	}
+
+	@Test
+	public void realEndpointAttemptUpdatesLastLookup()
+	{
+		final RuneBoundSummaryCache cache = new RuneBoundSummaryCache();
+		final Instant firstLookup = Instant.parse("2026-06-22T12:00:00Z");
+		final Instant secondLookup = firstLookup.plus(Duration.ofMinutes(31));
+
+		cache.markAttempt("SampleUser", firstLookup);
+		assertEquals(firstLookup, cache.lastAttempt("SampleUser"));
+
+		cache.markAttempt("SampleUser", secondLookup);
+		assertEquals(secondLookup, cache.lastAttempt("SampleUser"));
 	}
 
 	@Test
@@ -462,7 +510,7 @@ public class RuneBoundSafetyTest
 	{
 		final String readme = read(Paths.get("README.md"));
 
-		assertTrue(readme.contains("If enabled, the plugin may send the selected public RuneScape display name and normal HTTPS request metadata to RuneBound when the user clicks `Lookup` or `Refresh`."));
+		assertTrue(readme.contains("If enabled, the plugin may send the selected public RuneScape display name and normal HTTPS request metadata to RuneBound when the user clicks `Refresh`."));
 		assertTrue(readme.contains("GET https://rune-bound.net/api/runelite/v1/players/{username}/summary"));
 		assertTrue(readme.contains("The plugin does not:"));
 		assertTrue(readme.contains("Collect passwords or Jagex account data."));
@@ -479,6 +527,7 @@ public class RuneBoundSafetyTest
 		assertTrue(readme.contains("Network summary lookups are disabled by default"));
 		assertTrue(readme.contains("GET https://rune-bound.net/api/runelite/v1/players/{username}/summary"));
 		assertTrue(readme.contains("Trigger profile updates directly."));
+		assertTrue(readme.contains("Direct profile updates are not included in V1."));
 		assertFalse(readme.contains("https://rune-bound.net/api/players/{username}/update"));
 	}
 
@@ -616,6 +665,30 @@ public class RuneBoundSafetyTest
 		}
 	}
 
+	@Test
+	public void mainSourceDoesNotExposeDuplicateUpdateAction() throws IOException
+	{
+		try (Stream<Path> files = Files.walk(Paths.get("src", "main", "java")))
+		{
+			final String source = files
+				.filter(Files::isRegularFile)
+				.map(RuneBoundSafetyTest::read)
+				.collect(Collectors.joining("\n"));
+
+			final List<String> disallowedTerms = Arrays.asList(
+				"new JButton(\"Update\")",
+				"setUpdateOnRuneBoundAction",
+				"openUpdate",
+				"updateUrl"
+			);
+
+			for (String term : disallowedTerms)
+			{
+				assertFalse("Duplicate browser update action should stay removed: " + term, source.contains(term));
+			}
+		}
+	}
+
 	private static String read(Path path)
 	{
 		try
@@ -715,8 +788,8 @@ public class RuneBoundSafetyTest
 			+ "},"
 			+ "\"freshness\":{"
 			+ "\"trustLabel\":\"trusted_cached\","
-			+ "\"wom\":{\"source\":\"wise_old_man\",\"updatedAt\":\"2026-06-24T12:00:00.000Z\",\"label\":\"Source Freshness\",\"ageSeconds\":86400},"
-			+ "\"runebound\":{\"cachedAt\":\"2026-06-24T12:02:00.000Z\",\"label\":\"RuneBound Freshness\",\"ageSeconds\":120}"
+			+ "\"wom\":{\"source\":\"wise_old_man\",\"updatedAt\":\"2026-06-24T12:00:00.000Z\",\"label\":\"WOM Fresh\",\"ageSeconds\":86400},"
+			+ "\"runebound\":{\"cachedAt\":\"2026-06-24T12:02:00.000Z\",\"label\":\"RB Synced\",\"ageSeconds\":120}"
 			+ "},"
 			+ "\"client\":{\"recommendedTtlSeconds\":900,\"minimumPollIntervalSeconds\":1800,\"mayOpenProfileUrl\":true,\"mayRequestRefreshFromThisEndpoint\":false}"
 			+ "}";
@@ -776,5 +849,10 @@ public class RuneBoundSafetyTest
 			+ "\"freshness\":{\"trustLabel\":\"unavailable\"},"
 			+ "\"client\":{\"recommendedTtlSeconds\":300,\"minimumPollIntervalSeconds\":1800,\"mayOpenProfileUrl\":false,\"mayRequestRefreshFromThisEndpoint\":false}"
 			+ "}";
+	}
+
+	private static String genericNotFoundJson()
+	{
+		return "{\"message\":\"Runebound could not find that profile or action.\",\"error\":{\"status\":404}}";
 	}
 }

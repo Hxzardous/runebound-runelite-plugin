@@ -14,7 +14,7 @@ import java.util.Locale;
 final class RuneBoundSummaryResponse
 {
 	static final String SCHEMA_VERSION = "runebound.runelite.profile.summary.v1";
-	private static final int MAX_RECENT_ACHIEVEMENTS = 5;
+	private static final int MAX_RECENT_ACHIEVEMENTS = 3;
 	private static final int MAX_STRING_LENGTH = 160;
 
 	private final String statusCode;
@@ -253,20 +253,92 @@ final class RuneBoundSummaryResponse
 
 	private String formatFreshness()
 	{
-		final List<String> labels = new ArrayList<>();
-		if (freshnessLabel != null)
+		final String primary = cleanFreshnessLabel(freshnessLabel);
+		if (primary != null)
 		{
-			labels.add(freshnessLabel);
+			return primary;
 		}
-		if (womFreshnessLabel != null)
+
+		final String wom = cleanFreshnessLabel(womFreshnessLabel);
+		final String runebound = cleanFreshnessLabel(runeboundFreshnessLabel);
+		if ("Stale".equals(wom) || "Stale".equals(runebound))
 		{
-			labels.add(womFreshnessLabel);
+			return "Stale";
 		}
-		if (runeboundFreshnessLabel != null)
+		if ("Fresh".equals(wom) || "Fresh".equals(runebound))
 		{
-			labels.add(runeboundFreshnessLabel);
+			return "Fresh";
 		}
-		return labels.isEmpty() ? null : String.join(" / ", labels);
+		if ("Not cached".equals(wom) || "Not cached".equals(runebound))
+		{
+			return "Not cached";
+		}
+		if ("Unavailable".equals(wom) || "Unavailable".equals(runebound))
+		{
+			return "Unavailable";
+		}
+		return null;
+	}
+
+	private static String cleanFreshnessLabel(String label)
+	{
+		if (label == null)
+		{
+			return null;
+		}
+		if ("trusted_cached".equals(label))
+		{
+			return "Fresh";
+		}
+		if ("stale_cached".equals(label))
+		{
+			return "Stale";
+		}
+		if ("dirty_unknown".equals(label))
+		{
+			return "Stale";
+		}
+		if ("not_cached".equals(label))
+		{
+			return "Not cached";
+		}
+		if ("unavailable".equals(label))
+		{
+			return "Unavailable";
+		}
+		if ("WOM Fresh".equals(label))
+		{
+			return "Fresh";
+		}
+		if ("WOM Aging".equals(label))
+		{
+			return "Stale";
+		}
+		if ("WOM Outdated".equals(label))
+		{
+			return "Stale";
+		}
+		if ("WOM Unknown".equals(label))
+		{
+			return "Unavailable";
+		}
+		if ("RB Synced".equals(label))
+		{
+			return "Fresh";
+		}
+		if ("RB Aging".equals(label))
+		{
+			return "Stale";
+		}
+		if ("RB Outdated".equals(label))
+		{
+			return "Stale";
+		}
+		if ("RB Unknown".equals(label))
+		{
+			return "Unavailable";
+		}
+		return null;
 	}
 
 	private static List<String> achievementTitles(JsonObject recentAchievements)

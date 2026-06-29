@@ -11,8 +11,6 @@ import java.awt.Insets;
 import java.awt.event.ActionListener;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -21,6 +19,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
@@ -28,12 +27,8 @@ import net.runelite.client.ui.PluginPanel;
 public class RuneBoundPanel extends PluginPanel
 {
 	private static final long serialVersionUID = 1L;
-	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter
-		.ofPattern("yyyy-MM-dd HH:mm:ss z")
-		.withZone(ZoneId.systemDefault());
-	private static final String PRIVACY_NOTE = "Explicit rune-bound.net lookups only. No gameplay data is sent or automated.";
-	private static final String NOT_CACHED_MESSAGE = "RuneBound has no cached summary for this player yet. Open RuneBound to begin tracking or update this profile.";
-	private static final String ACTION_NOTE = "Refresh reads RuneBound's cache. Update opens RuneBound in your browser.";
+	private static final String PRIVACY_NOTE = "View cached RuneBound profile summaries.";
+	private static final String NOT_CACHED_MESSAGE = "No cached summary yet. Open Profile on RuneBound to begin tracking.";
 	private static final Color BACKGROUND = ColorScheme.DARK_GRAY_COLOR;
 	private static final Color CARD_BACKGROUND = new Color(34, 38, 43);
 	private static final Color CARD_BORDER = new Color(61, 68, 76);
@@ -42,38 +37,36 @@ public class RuneBoundPanel extends PluginPanel
 	private static final Color DOT_GREEN = new Color(72, 196, 116);
 	private static final Color DOT_GOLD = new Color(230, 176, 73);
 	private static final Color DOT_GRAY = new Color(128, 136, 145);
+	private static final Color DOT_RED = new Color(218, 87, 76);
+	private static final Color CHIP_BACKGROUND = new Color(42, 48, 56);
 
 	private final JLabel playerValue = primaryValueLabel("Not detected");
 	private final JLabel currentTitleValue = valueLabel("");
 	private final JLabel tierValue = valueLabel("");
-	private final JLabel boundPointsValue = valueLabel("");
+	private final JLabel boundPointsValue = primaryStatLabel("");
 	private final JLabel totalLevelValue = valueLabel("");
 	private final JLabel totalXpValue = valueLabel("");
 	private final JTextArea recentAchievementsValue = textAreaValue("");
 	private final JLabel freshnessValue = valueLabel("");
 	private final JLabel statusDot = new JLabel("●");
 	private final JLabel statusValue = valueLabel("Not logged in");
-	private final JTextArea statusNoteValue = mutedTextArea("Log in or use manual lookup.");
+	private final JTextArea statusNoteValue = mutedTextArea("Enter a username or log in.");
 	private final JLabel lastRefreshValue = valueLabel("Never");
 	private final JLabel cooldownValue = valueLabel("Ready");
 	private final JTextArea summaryMessage = mutedTextArea("");
-	private final JTextArea actionNote = mutedTextArea(ACTION_NOTE);
+	private final JPanel statusChip = new JPanel(new GridBagLayout());
 	private final JTextField manualLookupField = new JTextField();
-	private final JButton lookupButton = new JButton("Lookup");
-	private final JButton openSearchButton = new JButton("Open RuneBound");
 	private final JButton openProfileButton = new JButton("Open Profile");
-	private final JButton updateOnRuneBoundButton = new JButton("Update on RuneBound");
 	private final JButton refreshButton = new JButton("Refresh");
 	private final JLabel summaryHeader = sectionLabel("Overview");
-	private final JPanel freshnessRow = field("Freshness", freshnessValue);
 	private final JPanel lastRefreshRow = field("Last lookup", lastRefreshValue);
 	private final JPanel cooldownRow = field("Cooldown", cooldownValue);
 	private final JPanel currentTitleRow = field("Title", currentTitleValue);
 	private final JPanel tierRow = field("Tier", tierValue);
-	private final JPanel boundPointsRow = field("BoundPoints", boundPointsValue);
+	private final JPanel boundPointsRow = primaryMetric("BoundPoints", boundPointsValue);
 	private final JPanel totalLevelRow = field("Total Level", totalLevelValue);
 	private final JPanel totalXpRow = field("Total XP", totalXpValue);
-	private final JPanel recentAchievementsRow = textAreaField("Recent Achievements", recentAchievementsValue);
+	private final JPanel recentAchievementsRow = textAreaField("Achievements", recentAchievementsValue);
 
 	public RuneBoundPanel()
 	{
@@ -83,46 +76,59 @@ public class RuneBoundPanel extends PluginPanel
 		final JPanel content = new JPanel();
 		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 		content.setBackground(BACKGROUND);
-		content.setBorder(BorderFactory.createEmptyBorder(12, 10, 12, 10));
+		content.setBorder(BorderFactory.createEmptyBorder(8, 5, 9, 5));
+		stretchHorizontally(content);
 
 		final JLabel title = new JLabel("RuneBound");
 		title.setAlignmentX(Component.LEFT_ALIGNMENT);
 		title.setForeground(TEXT_PRIMARY);
 		title.setFont(title.getFont().deriveFont(Font.BOLD, 18.0f));
+		stretchHorizontally(title);
 		content.add(title);
 
-		final JLabel subtitle = new JLabel("Cached profile summaries");
+		final JLabel subtitle = new JLabel("Profile companion");
 		subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 		subtitle.setForeground(TEXT_SECONDARY);
+		stretchHorizontally(subtitle);
 		content.add(subtitle);
-		content.add(Box.createRigidArea(new Dimension(0, 8)));
+		content.add(Box.createRigidArea(new Dimension(0, 6)));
 		content.add(divider());
-		content.add(Box.createRigidArea(new Dimension(0, 8)));
+		content.add(Box.createRigidArea(new Dimension(0, 6)));
 
 		final JTextArea disclosure = mutedTextArea(PRIVACY_NOTE);
 		disclosure.setAlignmentX(Component.LEFT_ALIGNMENT);
-		disclosure.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		disclosure.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+		stretchHorizontally(disclosure);
 		content.add(disclosure);
 
 		final JPanel lookupPanel = new JPanel();
 		lookupPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		lookupPanel.setLayout(new BoxLayout(lookupPanel, BoxLayout.Y_AXIS));
 		lookupPanel.setBackground(BACKGROUND);
-		lookupPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		lookupPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+		stretchHorizontally(lookupPanel);
 
 		lookupPanel.add(sectionLabel("Lookup"));
 		lookupPanel.add(Box.createRigidArea(new Dimension(0, 4)));
 
+		styleInlineButton(refreshButton);
+		refreshButton.setToolTipText("Reads the cached RuneBound summary with a safe GET request. It does not update stats.");
+
 		final JPanel lookupRow = new JPanel(new BorderLayout(6, 0));
 		lookupRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 		lookupRow.setBackground(BACKGROUND);
-		manualLookupField.setToolTipText("Public OSRS username");
+		manualLookupField.setToolTipText("Public OSRS username to look up.");
+		manualLookupField.setMinimumSize(new Dimension(120, 30));
+		manualLookupField.setPreferredSize(new Dimension(180, 30));
+		manualLookupField.setFont(manualLookupField.getFont().deriveFont(13.0f));
 		lookupRow.add(manualLookupField, BorderLayout.CENTER);
-		styleButton(lookupButton);
-		lookupButton.setToolTipText("Request the read-only RuneBound summary for the typed username.");
-		lookupButton.setMaximumSize(new Dimension(82, 30));
-		lookupRow.add(lookupButton, BorderLayout.EAST);
+		lookupRow.add(refreshButton, BorderLayout.EAST);
+		stretchHorizontally(lookupRow);
 		lookupPanel.add(lookupRow);
+		final JTextArea lookupHelp = mutedTextArea("Enter a player and refresh.");
+		lookupHelp.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+		stretchHorizontally(lookupHelp);
+		lookupPanel.add(lookupHelp);
 		content.add(lookupPanel);
 
 		final JPanel card = new JPanel();
@@ -131,21 +137,27 @@ public class RuneBoundPanel extends PluginPanel
 		card.setBackground(CARD_BACKGROUND);
 		card.setBorder(BorderFactory.createCompoundBorder(
 			BorderFactory.createLineBorder(CARD_BORDER),
-			BorderFactory.createEmptyBorder(9, 9, 9, 9)
+			BorderFactory.createEmptyBorder(7, 7, 7, 7)
 		));
-		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+		stretchHorizontally(card);
 
 		card.add(sectionLabel("Player"));
-		card.add(field("Player", playerValue));
-		card.add(statusField());
+		card.add(playerSummary());
 		card.add(dividerWithSpacing());
+
+		styleButton(openProfileButton);
+		openProfileButton.setToolTipText("Open this player's RuneBound profile in your browser.");
+
 		summaryHeader.setVisible(false);
 		summaryMessage.setAlignmentX(Component.LEFT_ALIGNMENT);
-		summaryMessage.setBorder(BorderFactory.createEmptyBorder(0, 0, 9, 0));
+		summaryMessage.setBorder(BorderFactory.createEmptyBorder(0, 0, 7, 0));
 		summaryMessage.setVisible(false);
+		stretchHorizontally(summaryMessage);
 		card.add(summaryHeader);
 		card.add(summaryMessage);
 		card.add(boundPointsRow);
+		boundPointsRow.setToolTipText("RuneBound progression score for tracked profile data.");
+		boundPointsValue.setToolTipText("RuneBound progression score for tracked profile data.");
 		card.add(currentTitleRow);
 		card.add(tierRow);
 		card.add(totalLevelRow);
@@ -153,46 +165,20 @@ public class RuneBoundPanel extends PluginPanel
 		card.add(recentAchievementsRow);
 		hideSummaryRows();
 		card.add(dividerWithSpacing());
-		card.add(sectionLabel("Freshness"));
-		freshnessRow.setVisible(false);
-		card.add(freshnessRow);
+		card.add(sectionLabel("Activity"));
 		card.add(lastRefreshRow);
 		card.add(cooldownRow);
+		cooldownRow.setToolTipText("Refresh is limited per player to avoid unnecessary RuneBound reads.");
 		card.add(dividerWithSpacing());
-
-		styleButton(refreshButton);
-		styleButton(openProfileButton);
-		styleButton(updateOnRuneBoundButton);
-		styleButton(openSearchButton);
-		refreshButton.setToolTipText("Request the read-only RuneBound summary for the active player.");
-		openProfileButton.setToolTipText("Open this player's RuneBound profile in your browser.");
-		updateOnRuneBoundButton.setToolTipText("Open RuneBound's search/update page in your browser. No plugin update request is sent.");
-		openSearchButton.setToolTipText("Open RuneBound in your browser.");
 		card.add(sectionLabel("Actions"));
-		actionNote.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
-		card.add(actionNote);
-		card.add(refreshButton);
-		card.add(Box.createRigidArea(new Dimension(0, 6)));
 		card.add(openProfileButton);
-		card.add(Box.createRigidArea(new Dimension(0, 6)));
-		card.add(updateOnRuneBoundButton);
-		card.add(Box.createRigidArea(new Dimension(0, 6)));
-		card.add(openSearchButton);
 
 		content.add(card);
 
-		lookupButton.setEnabled(false);
-		openSearchButton.setEnabled(true);
-		openProfileButton.setEnabled(false);
-		updateOnRuneBoundButton.setEnabled(true);
+		openProfileButton.setEnabled(true);
 		refreshButton.setEnabled(false);
 
 		add(content, BorderLayout.NORTH);
-	}
-
-	void setOpenSearchAction(ActionListener listener)
-	{
-		openSearchButton.addActionListener(listener);
 	}
 
 	void setOpenProfileAction(ActionListener listener)
@@ -200,14 +186,8 @@ public class RuneBoundPanel extends PluginPanel
 		openProfileButton.addActionListener(listener);
 	}
 
-	void setUpdateOnRuneBoundAction(ActionListener listener)
-	{
-		updateOnRuneBoundButton.addActionListener(listener);
-	}
-
 	void setManualLookupAction(ActionListener listener)
 	{
-		lookupButton.addActionListener(listener);
 		manualLookupField.addActionListener(listener);
 	}
 
@@ -261,10 +241,16 @@ public class RuneBoundPanel extends PluginPanel
 	{
 		final RuneBoundPanelModel safeModel = model == null ? RuneBoundPanelModel.builder().status("Not logged in").build() : model;
 		final boolean hasUsername = safeModel.hasProfile();
-		final PanelStatus panelStatus = resolveStatus(hasUsername, safeModel.getStatus(), safeModel.getCooldownRemaining());
+		final PanelStatus panelStatus = resolveStatus(
+			hasUsername,
+			safeModel.getStatus(),
+			safeModel.getCooldownRemaining(),
+			safeModel.getFreshness()
+		);
 
 		playerValue.setText(hasUsername ? safeModel.getPlayer() : "Not detected");
-		final boolean hasFreshness = setOptionalText(freshnessRow, freshnessValue, safeModel.getFreshness());
+		final String freshness = RuneBoundUsername.normalize(safeModel.getFreshness());
+		freshnessValue.setText(freshness == null ? "" : freshness);
 		final boolean hasCurrentTitle = setOptionalText(currentTitleRow, currentTitleValue, safeModel.getCurrentTitle());
 		final boolean hasTier = setOptionalText(tierRow, tierValue, safeModel.getTier());
 		final boolean hasBoundPoints = setOptionalText(boundPointsRow, boundPointsValue, safeModel.getBoundPoints());
@@ -276,17 +262,20 @@ public class RuneBoundPanel extends PluginPanel
 		summaryMessage.setText(isNotCached ? NOT_CACHED_MESSAGE : "");
 		summaryMessage.setVisible(isNotCached);
 		summaryHeader.setVisible(hasSummaryDetails || isNotCached);
-		freshnessRow.setVisible(hasFreshness);
 		statusDot.setForeground(panelStatus.dotColor);
 		statusValue.setText(panelStatus.text);
 		statusNoteValue.setText(panelStatus.note);
-		lastRefreshValue.setText(safeModel.getLastLookup() == null ? "Never" : TIME_FORMATTER.format(safeModel.getLastLookup()));
+		statusChip.setToolTipText(panelStatus.note);
+		statusDot.setToolTipText(panelStatus.note);
+		statusValue.setToolTipText(panelStatus.note);
+		statusChip.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(panelStatus.dotColor),
+			BorderFactory.createEmptyBorder(2, 6, 2, 6)
+		));
+		lastRefreshValue.setText(formatLastLookup(safeModel.getLastLookup(), Instant.now()));
 		cooldownValue.setText(formatDuration(safeModel.getCooldownRemaining()));
-		lookupButton.setEnabled(safeModel.isNetworkLookupsEnabled());
-		openSearchButton.setEnabled(true);
-		openProfileButton.setEnabled(safeModel.canOpenProfile());
-		updateOnRuneBoundButton.setEnabled(true);
-		refreshButton.setEnabled(hasUsername && safeModel.isNetworkLookupsEnabled());
+		openProfileButton.setEnabled(true);
+		refreshButton.setEnabled(safeModel.isNetworkLookupsEnabled());
 	}
 
 	static String formatDuration(Duration duration)
@@ -305,6 +294,35 @@ public class RuneBoundPanel extends PluginPanel
 		}
 
 		return remainingSeconds + "s";
+	}
+
+	static String formatLastLookup(Instant lastLookup, Instant now)
+	{
+		if (lastLookup == null)
+		{
+			return "Never";
+		}
+
+		final Duration age = Duration.between(lastLookup, now == null ? Instant.now() : now);
+		if (age.isNegative() || age.getSeconds() < 30)
+		{
+			return "Just now";
+		}
+
+		final long minutes = age.toMinutes();
+		if (minutes < 60)
+		{
+			return minutes + "m ago";
+		}
+
+		final long hours = age.toHours();
+		if (hours < 24)
+		{
+			return hours + "h ago";
+		}
+
+		final long days = age.toDays();
+		return days + "d ago";
 	}
 
 	String displayedPlayer()
@@ -367,29 +385,19 @@ public class RuneBoundPanel extends PluginPanel
 		return cooldownValue.getText();
 	}
 
+	String displayedLastLookup()
+	{
+		return lastRefreshValue.getText();
+	}
+
 	boolean isOpenProfileEnabled()
 	{
 		return openProfileButton.isEnabled();
 	}
 
-	boolean isOpenSearchEnabled()
-	{
-		return openSearchButton.isEnabled();
-	}
-
-	boolean isUpdateOnRuneBoundEnabled()
-	{
-		return updateOnRuneBoundButton.isEnabled();
-	}
-
 	boolean isRefreshEnabled()
 	{
 		return refreshButton.isEnabled();
-	}
-
-	boolean isLookupEnabled()
-	{
-		return lookupButton.isEnabled();
 	}
 
 	boolean isCurrentTitleVisible()
@@ -424,7 +432,7 @@ public class RuneBoundPanel extends PluginPanel
 
 	boolean isFreshnessVisible()
 	{
-		return freshnessRow.isVisible();
+		return false;
 	}
 
 	boolean isSummaryMessageVisible()
@@ -442,14 +450,9 @@ public class RuneBoundPanel extends PluginPanel
 		return refreshButton.getText();
 	}
 
-	String openSearchButtonText()
+	String openProfileButtonText()
 	{
-		return openSearchButton.getText();
-	}
-
-	String updateOnRuneBoundButtonText()
-	{
-		return updateOnRuneBoundButton.getText();
+		return openProfileButton.getText();
 	}
 
 	Color statusDotColor()
@@ -457,18 +460,81 @@ public class RuneBoundPanel extends PluginPanel
 		return statusDot.getForeground();
 	}
 
+	String refreshTooltip()
+	{
+		return refreshButton.getToolTipText();
+	}
+
+	String statusTooltip()
+	{
+		return statusChip.getToolTipText();
+	}
+
+	String boundPointsTooltip()
+	{
+		return boundPointsRow.getToolTipText();
+	}
+
+	String cooldownTooltip()
+	{
+		return cooldownRow.getToolTipText();
+	}
+
+	int manualLookupPreferredWidth()
+	{
+		return manualLookupField.getPreferredSize().width;
+	}
+
+	int refreshPreferredWidth()
+	{
+		return refreshButton.getPreferredSize().width;
+	}
+
+
 	private static JPanel field(String labelText, JLabel value)
+	{
+		final JPanel panel = new JPanel(new GridBagLayout());
+		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		panel.setBackground(CARD_BACKGROUND);
+		panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
+		stretchHorizontally(panel);
+
+		final JLabel label = new JLabel(labelText);
+		label.setForeground(TEXT_SECONDARY);
+		label.setFont(label.getFont().deriveFont(Font.BOLD, 11.0f));
+		final GridBagConstraints labelConstraints = new GridBagConstraints();
+		labelConstraints.gridx = 0;
+		labelConstraints.gridy = 0;
+		labelConstraints.anchor = GridBagConstraints.WEST;
+		labelConstraints.insets = new Insets(0, 0, 0, 8);
+		panel.add(label, labelConstraints);
+
+		value.setHorizontalAlignment(SwingConstants.RIGHT);
+		final GridBagConstraints valueConstraints = new GridBagConstraints();
+		valueConstraints.gridx = 1;
+		valueConstraints.gridy = 0;
+		valueConstraints.weightx = 1.0;
+		valueConstraints.fill = GridBagConstraints.HORIZONTAL;
+		valueConstraints.anchor = GridBagConstraints.EAST;
+		panel.add(value, valueConstraints);
+		return panel;
+	}
+
+	private static JPanel primaryMetric(String labelText, JLabel value)
 	{
 		final JPanel panel = new JPanel();
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 		panel.setBackground(CARD_BACKGROUND);
-		panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 9, 0));
+		panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+		stretchHorizontally(panel);
 
 		final JLabel label = new JLabel(labelText);
 		label.setForeground(TEXT_SECONDARY);
+		label.setFont(label.getFont().deriveFont(Font.BOLD, 11.0f));
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);
 		value.setAlignmentX(Component.LEFT_ALIGNMENT);
+		value.setHorizontalAlignment(SwingConstants.LEFT);
 		panel.add(label);
 		panel.add(value);
 		return panel;
@@ -486,69 +552,101 @@ public class RuneBoundPanel extends PluginPanel
 
 	private static JPanel textAreaField(String labelText, JTextArea value)
 	{
-		final JPanel panel = field(labelText, new JLabel());
-		panel.removeAll();
+		final JPanel panel = new JPanel();
+		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+		panel.setBackground(CARD_BACKGROUND);
+		panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
+		stretchHorizontally(panel);
 
 		final JLabel label = new JLabel(labelText);
 		label.setForeground(TEXT_SECONDARY);
+		label.setFont(label.getFont().deriveFont(Font.BOLD, 11.0f));
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);
 		value.setAlignmentX(Component.LEFT_ALIGNMENT);
+		value.setRows(3);
+		stretchHorizontally(value);
 		panel.add(label);
+		panel.add(Box.createRigidArea(new Dimension(0, 2)));
 		panel.add(value);
 		return panel;
 	}
 
-	private JPanel statusField()
+	private JPanel playerSummary()
 	{
 		final JPanel panel = new JPanel(new GridBagLayout());
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.setBackground(CARD_BACKGROUND);
-		panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 9, 0));
+		panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
+		stretchHorizontally(panel);
 
-		final GridBagConstraints labelConstraints = new GridBagConstraints();
-		labelConstraints.gridx = 0;
-		labelConstraints.gridy = 0;
-		labelConstraints.gridwidth = 2;
-		labelConstraints.anchor = GridBagConstraints.WEST;
-		labelConstraints.insets = new Insets(0, 0, 2, 0);
+		final GridBagConstraints playerConstraints = new GridBagConstraints();
+		playerConstraints.gridx = 0;
+		playerConstraints.gridy = 0;
+		playerConstraints.weightx = 1.0;
+		playerConstraints.fill = GridBagConstraints.HORIZONTAL;
+		playerConstraints.anchor = GridBagConstraints.WEST;
+		playerConstraints.insets = new Insets(0, 0, 0, 8);
+		playerValue.setHorizontalAlignment(SwingConstants.LEFT);
+		panel.add(playerValue, playerConstraints);
 
-		final JLabel label = new JLabel("Status");
-		label.setForeground(TEXT_SECONDARY);
-		panel.add(label, labelConstraints);
+		final GridBagConstraints chipConstraints = new GridBagConstraints();
+		chipConstraints.gridx = 1;
+		chipConstraints.gridy = 0;
+		chipConstraints.anchor = GridBagConstraints.EAST;
+		panel.add(statusChip(), chipConstraints);
+		return panel;
+	}
+
+	private JPanel statusChip()
+	{
+		statusChip.setAlignmentX(Component.LEFT_ALIGNMENT);
+		statusChip.setBackground(CHIP_BACKGROUND);
+		statusChip.setOpaque(true);
+		statusChip.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(DOT_GRAY),
+			BorderFactory.createEmptyBorder(2, 6, 2, 6)
+		));
 
 		final GridBagConstraints dotConstraints = new GridBagConstraints();
 		dotConstraints.gridx = 0;
-		dotConstraints.gridy = 1;
+		dotConstraints.gridy = 0;
 		dotConstraints.anchor = GridBagConstraints.WEST;
-		dotConstraints.insets = new Insets(0, 0, 0, 6);
+		dotConstraints.insets = new Insets(0, 0, 0, 5);
 		statusDot.setForeground(DOT_GRAY);
-		panel.add(statusDot, dotConstraints);
+		statusChip.add(statusDot, dotConstraints);
 
 		final GridBagConstraints valueConstraints = new GridBagConstraints();
 		valueConstraints.gridx = 1;
-		valueConstraints.gridy = 1;
-		valueConstraints.weightx = 1.0;
-		valueConstraints.fill = GridBagConstraints.HORIZONTAL;
+		valueConstraints.gridy = 0;
 		valueConstraints.anchor = GridBagConstraints.WEST;
-		panel.add(statusValue, valueConstraints);
-
-		final GridBagConstraints noteConstraints = new GridBagConstraints();
-		noteConstraints.gridx = 0;
-		noteConstraints.gridy = 2;
-		noteConstraints.gridwidth = 2;
-		noteConstraints.weightx = 1.0;
-		noteConstraints.fill = GridBagConstraints.HORIZONTAL;
-		noteConstraints.anchor = GridBagConstraints.WEST;
-		noteConstraints.insets = new Insets(3, 0, 0, 0);
-		panel.add(statusNoteValue, noteConstraints);
-		return panel;
+		statusValue.setFont(statusValue.getFont().deriveFont(Font.BOLD, 11.0f));
+		statusChip.add(statusValue, valueConstraints);
+		return statusChip;
 	}
 
 	private static void styleButton(JButton button)
 	{
 		button.setAlignmentX(Component.LEFT_ALIGNMENT);
-		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+		button.setMinimumSize(new Dimension(0, 28));
+		button.setPreferredSize(new Dimension(180, 28));
+		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 		button.setFocusPainted(false);
+		button.setHorizontalAlignment(SwingConstants.CENTER);
+	}
+
+	private static void styleInlineButton(JButton button)
+	{
+		button.setMinimumSize(new Dimension(68, 30));
+		button.setPreferredSize(new Dimension(68, 30));
+		button.setMaximumSize(new Dimension(68, 30));
+		button.setFocusPainted(false);
+		button.setHorizontalAlignment(SwingConstants.CENTER);
+	}
+
+	private static void stretchHorizontally(Component component)
+	{
+		component.setMaximumSize(new Dimension(Integer.MAX_VALUE, Short.MAX_VALUE));
 	}
 
 	private static JPanel divider()
@@ -566,7 +664,7 @@ public class RuneBoundPanel extends PluginPanel
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 		panel.setBackground(CARD_BACKGROUND);
-		panel.setBorder(BorderFactory.createEmptyBorder(2, 0, 9, 0));
+		panel.setBorder(BorderFactory.createEmptyBorder(1, 0, 7, 0));
 		panel.add(divider());
 		return panel;
 	}
@@ -574,106 +672,138 @@ public class RuneBoundPanel extends PluginPanel
 	private static PanelStatus resolveStatus(
 		boolean hasUsername,
 		String status,
-		Duration cooldownRemaining
+		Duration cooldownRemaining,
+		String freshness
 	)
 	{
 		if (!hasUsername)
 		{
-			return new PanelStatus("Not logged in", "Log in or use manual lookup.", DOT_GRAY);
+			return new PanelStatus("Unavailable", "Enter a username or log in.", DOT_GRAY);
 		}
 
 		final boolean cooldownActive = cooldownRemaining != null && !cooldownRemaining.isZero() && !cooldownRemaining.isNegative();
 		if (cooldownActive && status != null && status.startsWith("Cooldown active"))
 		{
-			return new PanelStatus("Cooldown active", "Wait before another summary lookup for this player.", DOT_GOLD);
+			return freshnessStatus(freshness, "Try again when cooldown ends.");
 		}
 
 		if ("Network lookups disabled".equals(status))
 		{
-			return new PanelStatus("Lookups disabled", "Enable summary lookups in config to request cached data.", DOT_GOLD);
+			return new PanelStatus("Unavailable", "Enable lookups to use Refresh.", DOT_GRAY);
 		}
 
 		if ("Loading RuneBound summary".equals(status))
 		{
-			return new PanelStatus("Loading summary", "Requesting cached RuneBound summary.", DOT_GOLD);
+			return new PanelStatus("Unavailable", "Fetching RuneBound summary.", DOT_GOLD);
+		}
+
+		if ("Cached RuneBound profile".equals(status))
+		{
+			return freshnessStatus(freshness, "Cached summary ready.");
 		}
 
 		if ("Summary response loaded from RuneBound".equals(status))
 		{
-			return new PanelStatus("Cached summary loaded", "Read-only summary returned by RuneBound cache.", DOT_GREEN);
+			return freshnessStatus(freshness, "Cached summary ready.");
 		}
 
 		if ("Using local summary cache".equals(status))
 		{
-			return new PanelStatus("Cached locally", "Shown from local plugin cache.", DOT_GREEN);
+			return freshnessStatus(freshness, "Using recent lookup.");
 		}
 
 		if ("Showing cached summary while refreshing".equals(status))
 		{
-			return new PanelStatus("Refreshing summary", "Showing cache until the latest request returns.", DOT_GOLD);
+			return freshnessStatus(freshness, "Refreshing summary.");
 		}
 
 		if ("Summary lookup could not reach RuneBound".equals(status))
 		{
-			return new PanelStatus("Network unavailable", "Check connection; no background retry is running.", DOT_GOLD);
+			return new PanelStatus("Error", "RuneBound unreachable.", DOT_RED);
 		}
 
 		if ("No cached RuneBound summary".equals(status))
 		{
-			return new PanelStatus("Not cached", "No cached profile summary yet.", DOT_GOLD);
+			return new PanelStatus("Not cached", "Open Profile to begin tracking.", DOT_GRAY);
 		}
 
 		if ("Invalid username".equals(status))
 		{
-			return new PanelStatus("Invalid username", "Enter a valid public OSRS username.", DOT_GOLD);
+			return new PanelStatus("Error", "Enter a valid OSRS username.", DOT_RED);
 		}
 
 		if ("Profile link unavailable".equals(status))
 		{
-			return new PanelStatus("Profile unavailable", "RuneBound did not provide a safe profile link.", DOT_GOLD);
+			return new PanelStatus("Unavailable", "Open Profile is unavailable.", DOT_GRAY);
 		}
 
 		if ("Cached RuneBound profile may be stale".equals(status))
 		{
-			return new PanelStatus("Stale cache", "Freshness labels show age and trust.", DOT_GOLD);
+			return new PanelStatus("Stale", "RuneBound says this cached summary may be old.", DOT_GOLD);
 		}
 
 		if ("Cached RuneBound profile needs freshness review".equals(status))
 		{
-			return new PanelStatus("Dirty cache", "RuneBound marked this cached summary for review.", DOT_GOLD);
+			return new PanelStatus("Stale", "RuneBound marked this cached summary for review.", DOT_GOLD);
 		}
 
 		if ("RuneBound summary unavailable".equals(status))
 		{
-			return new PanelStatus("Summary unavailable", "RuneBound returned a malformed cached summary.", DOT_GOLD);
+			return new PanelStatus("Unavailable", "Summary is not displayable.", DOT_GRAY);
 		}
 
 		if ("RuneBound summary service unavailable".equals(status))
 		{
-			return new PanelStatus("Server error", "RuneBound could not serve the summary right now.", DOT_GOLD);
+			return new PanelStatus("Error", "Try again later.", DOT_RED);
+		}
+
+		if ("RuneBound summary endpoint unavailable".equals(status))
+		{
+			return new PanelStatus("Error", "Summary endpoint unavailable.", DOT_RED);
 		}
 
 		if ("RuneBound summary response was too large".equals(status))
 		{
-			return new PanelStatus("Summary unavailable", "RuneBound returned more data than this plugin accepts.", DOT_GOLD);
+			return new PanelStatus("Error", "Summary was not loaded.", DOT_RED);
 		}
 
 		if ("RuneBound rate limit active".equals(status))
 		{
-			return new PanelStatus("Rate limited", "Wait before requesting another summary.", DOT_GOLD);
+			return new PanelStatus("Error", "Try again later.", DOT_RED);
 		}
 
 		if ("No logged-in player detected".equals(status))
 		{
-			return new PanelStatus("Not logged in", "Log in or use manual lookup.", DOT_GRAY);
+			return new PanelStatus("Unavailable", "Enter a username or log in.", DOT_GRAY);
 		}
 
 		if (status != null && status.startsWith("RuneBound "))
 		{
-			return new PanelStatus("RuneBound unavailable", "The lookup failed safely without retrying in the background.", DOT_GOLD);
+			return new PanelStatus("Error", "Lookup failed safely.", DOT_RED);
 		}
 
-		return new PanelStatus("Ready", "Ready for an explicit summary lookup.", DOT_GREEN);
+		return new PanelStatus("Unavailable", "Ready to refresh.", DOT_GRAY);
+	}
+
+	private static PanelStatus freshnessStatus(String freshness, String note)
+	{
+		if ("Fresh".equals(freshness))
+		{
+			return new PanelStatus("Fresh", note, DOT_GREEN);
+		}
+		if ("Stale".equals(freshness))
+		{
+			return new PanelStatus("Stale", "RuneBound says this cached summary may be old.", DOT_GOLD);
+		}
+		if ("Not cached".equals(freshness))
+		{
+			return new PanelStatus("Not cached", "Open Profile to begin tracking.", DOT_GRAY);
+		}
+		if ("Unavailable".equals(freshness))
+		{
+			return new PanelStatus("Unavailable", "Summary is not displayable.", DOT_GRAY);
+		}
+		return new PanelStatus("Unavailable", note, DOT_GRAY);
 	}
 
 	private static JLabel valueLabel(String text)
@@ -709,6 +839,13 @@ public class RuneBoundPanel extends PluginPanel
 		return label;
 	}
 
+	private static JLabel primaryStatLabel(String text)
+	{
+		final JLabel label = valueLabel(text);
+		label.setFont(label.getFont().deriveFont(Font.BOLD, 20.0f));
+		return label;
+	}
+
 	private static boolean setOptionalText(JPanel row, JLabel valueLabel, String value)
 	{
 		final String normalized = RuneBoundUsername.normalize(value);
@@ -731,7 +868,7 @@ public class RuneBoundPanel extends PluginPanel
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);
 		label.setForeground(TEXT_SECONDARY);
 		label.setFont(label.getFont().deriveFont(Font.BOLD, 11.0f));
-		label.setBorder(BorderFactory.createEmptyBorder(2, 0, 6, 0));
+		label.setBorder(BorderFactory.createEmptyBorder(1, 0, 5, 0));
 		return label;
 	}
 

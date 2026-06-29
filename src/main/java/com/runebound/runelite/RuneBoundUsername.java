@@ -4,7 +4,7 @@ import java.util.Locale;
 
 final class RuneBoundUsername
 {
-	private static final int MAX_LOOKUP_USERNAME_LENGTH = 64;
+	private static final int MAX_LOOKUP_USERNAME_LENGTH = 32;
 
 	private RuneBoundUsername()
 	{
@@ -35,7 +35,9 @@ final class RuneBoundUsername
 	static boolean isLookupCandidate(String username)
 	{
 		final String normalized = normalize(username);
-		return normalized != null && normalized.length() <= MAX_LOOKUP_USERNAME_LENGTH;
+		return normalized != null &&
+			normalized.length() <= MAX_LOOKUP_USERNAME_LENGTH &&
+			normalized.matches("[A-Za-z0-9 _-]+");
 	}
 
 	static String cacheKey(String username)

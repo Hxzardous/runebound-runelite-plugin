@@ -9,12 +9,14 @@ The plugin is display-only. It shows a RuneBound side panel, opens RuneBound pag
 - Detect the logged-in player's public RuneScape display name through RuneLite.
 - Let the user manually look up a public RuneScape display name.
 - Display cached RuneBound profile summary fields when they are available.
-- Open RuneBound, the RuneBound search/update page, and player profile pages in the browser.
+- Open RuneBound player pages in the browser.
 - Respect a 15 minute local cache TTL and a 30 minute same-player lookup cooldown.
 
 ## Privacy
 
-Network summary lookups are disabled by default. If enabled, the plugin may send the selected public RuneScape display name and normal HTTPS request metadata to RuneBound when the user clicks `Lookup` or `Refresh`.
+Network summary lookups are disabled by default. If enabled, the plugin may send the selected public RuneScape display name and normal HTTPS request metadata to RuneBound when the user clicks `Refresh`.
+
+RuneLite may show a third-party network warning when summary lookups are enabled. That warning is expected for Plugin Hub plugins that can contact a non-RuneLite service.
 
 The summary endpoint is:
 
@@ -39,15 +41,17 @@ The plugin does not:
 1. Open the RuneBound side panel in RuneLite.
 2. Optionally enable `Enable RuneBound summary lookups` in plugin config.
 3. Use the current detected player or enter a public username manually.
-4. Click `Lookup` or `Refresh` to request a cached summary.
-5. Use `Open Profile`, `Open RuneBound`, or `Update on RuneBound` to view RuneBound in your browser.
+4. Click `Refresh` to request a cached summary.
+5. Use `Open Profile` to view the player on RuneBound.
 
-`Update on RuneBound` only opens rune-bound.net in your browser. It does not call a RuneBound update endpoint from the plugin.
+Direct profile updates are not included in V1. Use the RuneBound profile page in your browser to begin tracking or refresh a profile.
+
+Automatic logout-triggered updates are not included in V1. They are a possible V2 feature only if they can remain opt-in, rate-limited, and Plugin Hub-safe.
 
 If no cached summary exists, the panel shows:
 
 ```text
-RuneBound has no cached summary for this player yet. Open RuneBound to begin tracking or update this profile.
+No cached summary yet. Open Profile on RuneBound to begin tracking.
 ```
 
 ## Development

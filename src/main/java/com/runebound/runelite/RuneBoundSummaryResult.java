@@ -53,6 +53,11 @@ final class RuneBoundSummaryResult
 
 		if (statusCode == 404)
 		{
+			if (parsed == null)
+			{
+				return new RuneBoundSummaryResult(true, statusCode, RuneBoundSummaryStatus.SERVER_ERROR, "RuneBound summary endpoint unavailable", body, null);
+			}
+
 			return new RuneBoundSummaryResult(true, statusCode, RuneBoundSummaryStatus.NOT_CACHED, "No cached RuneBound summary", body, parsed);
 		}
 

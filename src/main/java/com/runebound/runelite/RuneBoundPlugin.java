@@ -60,7 +60,6 @@ public class RuneBoundPlugin extends Plugin
 	private String detectedUsername;
 	private String activeLookupUsername;
 	private String activeProfileUrl;
-	private boolean activeProfileBlockedByResponse;
 	private volatile boolean started;
 
 	@Override
@@ -69,11 +68,9 @@ public class RuneBoundPlugin extends Plugin
 		started = true;
 		summaryClient = new RuneBoundSummaryClient(new RuneBoundOkHttpTransport(okHttpClient, gson));
 		panel = new RuneBoundPanel();
-		panel.setOpenSearchAction(event -> openRuneBound());
 		panel.setOpenProfileAction(event -> openProfile());
-		panel.setUpdateOnRuneBoundAction(event -> openSearch());
-		panel.setManualLookupAction(event -> requestSummary(panel.manualLookupUsername()));
-		panel.setRefreshAction(event -> requestSummary(activeTargetUsername()));
+		panel.setManualLookupAction(event -> requestSummary(selectedTargetUsername()));
+		panel.setRefreshAction(event -> requestSummary(selectedTargetUsername()));
 
 		navButton = NavigationButton.builder()
 			.tooltip("RuneBound")
@@ -103,7 +100,6 @@ public class RuneBoundPlugin extends Plugin
 		detectedUsername = null;
 		activeLookupUsername = null;
 		activeProfileUrl = null;
-		activeProfileBlockedByResponse = false;
 		log.debug("RuneBound stopped");
 	}
 
@@ -133,37 +129,19 @@ public class RuneBoundPlugin extends Plugin
 		}
 	}
 
-	private void openRuneBound()
-	{
-		LinkBrowser.browse(RuneBoundUrls.homeUrl());
-		renderPanel(defaultStatus());
-	}
-
-	private void openSearch()
-	{
-		LinkBrowser.browse(RuneBoundUrls.searchUrl());
-		renderPanel(defaultStatus());
-	}
-
 	private void openProfile()
 	{
-		if (RuneBoundUrls.isSafeProfileUrl(activeProfileUrl))
+		final String username = selectedTargetUsername();
+		if (!RuneBoundUsername.isLookupCandidate(username))
+		{
+			renderPanel(username == null ? "No logged-in player detected" : "Invalid username");
+			return;
+		}
+
+		if (RuneBoundUrls.isSafeProfileUrl(activeProfileUrl) && username.equals(activeLookupUsername))
 		{
 			LinkBrowser.browse(activeProfileUrl);
 			renderPanel(defaultStatus());
-			return;
-		}
-
-		if (activeProfileBlockedByResponse)
-		{
-			renderPanel("Profile link unavailable");
-			return;
-		}
-
-		final String username = activeTargetUsername();
-		if (username == null)
-		{
-			renderPanel("No logged-in player detected");
 			return;
 		}
 
@@ -182,7 +160,6 @@ public class RuneBoundPlugin extends Plugin
 
 		activeLookupUsername = normalizedUsername;
 		activeProfileUrl = null;
-		activeProfileBlockedByResponse = false;
 		if (!config.enableNetworkLookups())
 		{
 			renderPanel("Network lookups disabled");
@@ -278,6 +255,20 @@ public class RuneBoundPlugin extends Plugin
 		return activeLookup == null ? activeUsername() : activeLookup;
 	}
 
+	private String selectedTargetUsername()
+	{
+		if (panel != null)
+		{
+			final String manual = RuneBoundUsername.normalize(panel.manualLookupUsername());
+			if (manual != null)
+			{
+				return manual;
+			}
+		}
+
+		return activeTargetUsername();
+	}
+
 	private void applySummaryResult(String username, RuneBoundSummaryResult result, String status)
 	{
 		if (panel == null)
@@ -292,7 +283,6 @@ public class RuneBoundPlugin extends Plugin
 		if (response != null)
 		{
 			activeProfileUrl = response.getProfileUrl();
-			activeProfileBlockedByResponse = !response.canOpenProfile();
 			panel.showModel(response.toPanelModel(
 				username,
 				status,

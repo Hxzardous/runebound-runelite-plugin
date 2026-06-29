@@ -22,14 +22,12 @@ public class RuneBoundPanelTest
 		);
 
 		assertEquals("RuneBounder", panel.displayedPlayer());
-		assertEquals("Ready", panel.displayedStatus());
-		assertTrue(panel.isOpenSearchEnabled());
+		assertEquals("Unavailable", panel.displayedStatus());
 		assertTrue(panel.isOpenProfileEnabled());
-		assertTrue(panel.isUpdateOnRuneBoundEnabled());
 		assertTrue(panel.isRefreshEnabled());
 		assertEquals("Refresh", panel.refreshButtonText());
-		assertEquals("Open RuneBound", panel.openSearchButtonText());
-		assertEquals("Update on RuneBound", panel.updateOnRuneBoundButtonText());
+		assertEquals("Open Profile", panel.openProfileButtonText());
+		assertTrue(panel.manualLookupPreferredWidth() > panel.refreshPreferredWidth());
 	}
 
 	@Test
@@ -69,7 +67,7 @@ public class RuneBoundPanelTest
 			.totalLevel("2,277")
 			.totalXp("460,000,000")
 			.recentAchievements("Example Achievement")
-			.freshness("trusted_cached / Source Freshness / RuneBound Freshness")
+			.freshness("Fresh")
 			.status("Cached RuneBound profile")
 			.networkLookupsEnabled(true)
 			.openProfileEnabled(true)
@@ -83,14 +81,19 @@ public class RuneBoundPanelTest
 		assertTrue(panel.isTotalLevelVisible());
 		assertTrue(panel.isTotalXpVisible());
 		assertTrue(panel.isRecentAchievementsVisible());
-		assertTrue(panel.isFreshnessVisible());
+		assertFalse(panel.isFreshnessVisible());
 		assertEquals("10 HP Paragon", panel.displayedCurrentTitle());
 		assertEquals("Ascendant Bound", panel.displayedTier());
 		assertEquals("35,570", panel.displayedBoundPoints());
 		assertEquals("2,277", panel.displayedTotalLevel());
 		assertEquals("460,000,000", panel.displayedTotalXp());
 		assertEquals("Example Achievement", panel.displayedRecentAchievements());
-		assertEquals("trusted_cached / Source Freshness / RuneBound Freshness", panel.displayedFreshness());
+		assertEquals("Fresh", panel.displayedFreshness());
+		assertEquals("Fresh", panel.displayedStatus());
+		assertEquals("Cached summary ready.", panel.statusTooltip());
+		assertEquals("RuneBound progression score for tracked profile data.", panel.boundPointsTooltip());
+		assertEquals("Refresh is limited per player to avoid unnecessary RuneBound reads.", panel.cooldownTooltip());
+		assertTrue(panel.refreshTooltip().contains("safe GET request"));
 		assertTrue(panel.isOpenProfileEnabled());
 	}
 
@@ -104,8 +107,8 @@ public class RuneBoundPanelTest
 			Duration.ofMinutes(42).plusSeconds(9)
 		);
 
-		assertEquals("Cooldown active", panel.displayedStatus());
-		assertEquals("Wait before another summary lookup for this player.", panel.displayedStatusNote());
+		assertEquals("Unavailable", panel.displayedStatus());
+		assertEquals("Try again when cooldown ends.", panel.displayedStatusNote());
 		assertEquals("42m 9s", panel.displayedCooldown());
 		assertTrue(panel.isRefreshEnabled());
 	}
@@ -121,8 +124,8 @@ public class RuneBoundPanelTest
 			true
 		);
 
-		assertEquals("Cached summary loaded", panel.displayedStatus());
-		assertEquals("Read-only summary returned by RuneBound cache.", panel.displayedStatusNote());
+		assertEquals("Unavailable", panel.displayedStatus());
+		assertEquals("Cached summary ready.", panel.displayedStatusNote());
 		assertEquals("60m 0s", panel.displayedCooldown());
 	}
 
@@ -137,27 +140,24 @@ public class RuneBoundPanelTest
 			false
 		);
 
-		assertEquals("Lookups disabled", panel.displayedStatus());
-		assertEquals("Enable summary lookups in config to request cached data.", panel.displayedStatusNote());
-		assertTrue(panel.isOpenSearchEnabled());
+		assertEquals("Unavailable", panel.displayedStatus());
+		assertEquals("Enable lookups to use Refresh.", panel.displayedStatusNote());
 		assertTrue(panel.isOpenProfileEnabled());
 		assertFalse(panel.isRefreshEnabled());
 	}
 
 	@Test
-	public void noUsernameShowsNotLoggedInAndDisablesButtons() throws Exception
+	public void noUsernameShowsNotLoggedInButAllowsManualLookupActions() throws Exception
 	{
 		final RuneBoundPanel panel = updatedPanel(null, "Ready", null, Duration.ZERO);
 
 		assertEquals("Not detected", panel.displayedPlayer());
-		assertEquals("Not logged in", panel.displayedStatus());
-		assertEquals("Log in or use manual lookup.", panel.displayedStatusNote());
+		assertEquals("Unavailable", panel.displayedStatus());
+		assertEquals("Enter a username or log in.", panel.displayedStatusNote());
 		assertEquals("Ready", panel.displayedCooldown());
 		assertFalse(panel.isSummaryHeaderVisible());
-		assertTrue(panel.isOpenSearchEnabled());
-		assertTrue(panel.isUpdateOnRuneBoundEnabled());
-		assertFalse(panel.isOpenProfileEnabled());
-		assertFalse(panel.isRefreshEnabled());
+		assertTrue(panel.isOpenProfileEnabled());
+		assertTrue(panel.isRefreshEnabled());
 	}
 
 	@Test
@@ -171,15 +171,21 @@ public class RuneBoundPanelTest
 	}
 
 	@Test
-	public void statusDotChangesBetweenNotLoggedInAndReady() throws Exception
+	public void statusDotChangesBetweenUnavailableAndFresh() throws Exception
 	{
 		final RuneBoundPanel panel = updatedPanel(null, "Not logged in", null, Duration.ZERO);
-		final java.awt.Color notLoggedInColor = panel.statusDotColor();
+		final java.awt.Color unavailableColor = panel.statusDotColor();
 
-		SwingUtilities.invokeAndWait(() -> panel.showModel("RuneBounder", "Ready", null, Duration.ZERO, true));
+		SwingUtilities.invokeAndWait(() -> panel.showModel(RuneBoundPanelModel.builder()
+			.player("RuneBounder")
+			.status("Cached RuneBound profile")
+			.freshness("Fresh")
+			.networkLookupsEnabled(true)
+			.openProfileEnabled(true)
+			.build()));
 
-		assertNotEquals(notLoggedInColor, panel.statusDotColor());
-		assertEquals("Ready", panel.displayedStatus());
+		assertNotEquals(unavailableColor, panel.statusDotColor());
+		assertEquals("Fresh", panel.displayedStatus());
 	}
 
 	@Test
@@ -192,8 +198,9 @@ public class RuneBoundPanelTest
 			Duration.ZERO
 		);
 
-		assertEquals("Stale cache", panel.displayedStatus());
-		assertEquals("Freshness labels show age and trust.", panel.displayedStatusNote());
+		assertEquals("Stale", panel.displayedStatus());
+		assertEquals("RuneBound says this cached summary may be old.", panel.displayedStatusNote());
+		assertEquals("RuneBound says this cached summary may be old.", panel.statusTooltip());
 
 		panel = updatedPanel(
 			"RuneBounder",
@@ -202,7 +209,7 @@ public class RuneBoundPanelTest
 			Duration.ZERO
 		);
 
-		assertEquals("Dirty cache", panel.displayedStatus());
+		assertEquals("Stale", panel.displayedStatus());
 		assertEquals("RuneBound marked this cached summary for review.", panel.displayedStatusNote());
 
 		panel = updatedPanel(
@@ -213,11 +220,11 @@ public class RuneBoundPanelTest
 		);
 
 		assertEquals("Not cached", panel.displayedStatus());
-		assertEquals("No cached profile summary yet.", panel.displayedStatusNote());
+		assertEquals("Open Profile to begin tracking.", panel.displayedStatusNote());
 		assertTrue(panel.isSummaryHeaderVisible());
 		assertTrue(panel.isSummaryMessageVisible());
 		assertEquals(
-			"RuneBound has no cached summary for this player yet. Open RuneBound to begin tracking or update this profile.",
+			"No cached summary yet. Open Profile on RuneBound to begin tracking.",
 			panel.displayedSummaryMessage()
 		);
 		assertFalse(panel.isCurrentTitleVisible());
@@ -235,8 +242,8 @@ public class RuneBoundPanelTest
 			Duration.ZERO
 		);
 
-		assertEquals("Profile unavailable", panel.displayedStatus());
-		assertEquals("RuneBound did not provide a safe profile link.", panel.displayedStatusNote());
+		assertEquals("Unavailable", panel.displayedStatus());
+		assertEquals("Open Profile is unavailable.", panel.displayedStatusNote());
 	}
 
 	@Test
@@ -249,8 +256,8 @@ public class RuneBoundPanelTest
 			Duration.ZERO
 		);
 
-		assertEquals("Network unavailable", panel.displayedStatus());
-		assertEquals("Check connection; no background retry is running.", panel.displayedStatusNote());
+		assertEquals("Error", panel.displayedStatus());
+		assertEquals("RuneBound unreachable.", panel.displayedStatusNote());
 
 		panel = updatedPanel(
 			"RuneBounder",
@@ -259,8 +266,8 @@ public class RuneBoundPanelTest
 			Duration.ZERO
 		);
 
-		assertEquals("Rate limited", panel.displayedStatus());
-		assertEquals("Wait before requesting another summary.", panel.displayedStatusNote());
+		assertEquals("Error", panel.displayedStatus());
+		assertEquals("Try again later.", panel.displayedStatusNote());
 
 		panel = updatedPanel(
 			"RuneBounder",
@@ -269,8 +276,30 @@ public class RuneBoundPanelTest
 			Duration.ZERO
 		);
 
-		assertEquals("Server error", panel.displayedStatus());
-		assertEquals("RuneBound could not serve the summary right now.", panel.displayedStatusNote());
+		assertEquals("Error", panel.displayedStatus());
+		assertEquals("Try again later.", panel.displayedStatusNote());
+	}
+
+	@Test
+	public void lastLookupUsesRelativeTimeInsteadOfRawTimestamp() throws Exception
+	{
+		assertEquals("Never", RuneBoundPanel.formatLastLookup(null, Instant.parse("2026-06-29T16:00:00Z")));
+		assertEquals(
+			"Just now",
+			RuneBoundPanel.formatLastLookup(Instant.parse("2026-06-29T15:59:45Z"), Instant.parse("2026-06-29T16:00:00Z"))
+		);
+		assertEquals(
+			"5m ago",
+			RuneBoundPanel.formatLastLookup(Instant.parse("2026-06-29T15:55:00Z"), Instant.parse("2026-06-29T16:00:00Z"))
+		);
+		assertEquals(
+			"3h ago",
+			RuneBoundPanel.formatLastLookup(Instant.parse("2026-06-29T13:00:00Z"), Instant.parse("2026-06-29T16:00:00Z"))
+		);
+		assertEquals(
+			"2d ago",
+			RuneBoundPanel.formatLastLookup(Instant.parse("2026-06-27T16:00:00Z"), Instant.parse("2026-06-29T16:00:00Z"))
+		);
 	}
 
 	private static RuneBoundPanel updatedPanel(
