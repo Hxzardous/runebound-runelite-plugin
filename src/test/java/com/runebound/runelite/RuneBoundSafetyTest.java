@@ -113,6 +113,15 @@ public class RuneBoundSafetyTest
 	}
 
 	@Test
+	public void browserActionUrlsStayOnRuneBoundPages()
+	{
+		assertEquals("https://rune-bound.net", RuneBoundUrls.homeUrl());
+		assertEquals("https://rune-bound.net/search", RuneBoundUrls.searchUrl());
+		assertFalse(RuneBoundUrls.homeUrl().contains("/api/"));
+		assertFalse(RuneBoundUrls.searchUrl().contains("/api/"));
+	}
+
+	@Test
 	public void summaryClientBuildsReadOnlyGetRequest()
 	{
 		final AtomicReference<String> capturedUrl = new AtomicReference<>();

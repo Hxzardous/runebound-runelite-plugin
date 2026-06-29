@@ -25,8 +25,11 @@ public class RuneBoundPanelTest
 		assertEquals("Ready", panel.displayedStatus());
 		assertTrue(panel.isOpenSearchEnabled());
 		assertTrue(panel.isOpenProfileEnabled());
+		assertTrue(panel.isUpdateOnRuneBoundEnabled());
 		assertTrue(panel.isRefreshEnabled());
 		assertEquals("Refresh", panel.refreshButtonText());
+		assertEquals("Open RuneBound", panel.openSearchButtonText());
+		assertEquals("Update on RuneBound", panel.updateOnRuneBoundButtonText());
 	}
 
 	@Test
@@ -152,6 +155,7 @@ public class RuneBoundPanelTest
 		assertEquals("Ready", panel.displayedCooldown());
 		assertFalse(panel.isSummaryHeaderVisible());
 		assertTrue(panel.isOpenSearchEnabled());
+		assertTrue(panel.isUpdateOnRuneBoundEnabled());
 		assertFalse(panel.isOpenProfileEnabled());
 		assertFalse(panel.isRefreshEnabled());
 	}

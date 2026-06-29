@@ -69,8 +69,9 @@ public class RuneBoundPlugin extends Plugin
 		started = true;
 		summaryClient = new RuneBoundSummaryClient(new RuneBoundOkHttpTransport(okHttpClient, gson));
 		panel = new RuneBoundPanel();
-		panel.setOpenSearchAction(event -> openSearch());
+		panel.setOpenSearchAction(event -> openRuneBound());
 		panel.setOpenProfileAction(event -> openProfile());
+		panel.setUpdateOnRuneBoundAction(event -> openSearch());
 		panel.setManualLookupAction(event -> requestSummary(panel.manualLookupUsername()));
 		panel.setRefreshAction(event -> requestSummary(activeTargetUsername()));
 
@@ -130,6 +131,12 @@ public class RuneBoundPlugin extends Plugin
 		{
 			renderPanel(defaultStatus());
 		}
+	}
+
+	private void openRuneBound()
+	{
+		LinkBrowser.browse(RuneBoundUrls.homeUrl());
+		renderPanel(defaultStatus());
 	}
 
 	private void openSearch()

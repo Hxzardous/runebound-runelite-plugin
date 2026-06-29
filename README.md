@@ -9,7 +9,7 @@ The plugin is display-only. It shows a RuneBound side panel, opens RuneBound pag
 - Detect the logged-in player's public RuneScape display name through RuneLite.
 - Let the user manually look up a public RuneScape display name.
 - Display cached RuneBound profile summary fields when they are available.
-- Open RuneBound search and player profile pages in the browser.
+- Open RuneBound, the RuneBound search/update page, and player profile pages in the browser.
 - Respect a 15 minute local cache TTL and a 30 minute same-player lookup cooldown.
 
 ## Privacy
@@ -40,7 +40,9 @@ The plugin does not:
 2. Optionally enable `Enable RuneBound summary lookups` in plugin config.
 3. Use the current detected player or enter a public username manually.
 4. Click `Lookup` or `Refresh` to request a cached summary.
-5. Use `Open Profile` or `Open RuneBound` to view RuneBound in your browser.
+5. Use `Open Profile`, `Open RuneBound`, or `Update on RuneBound` to view RuneBound in your browser.
+
+`Update on RuneBound` only opens rune-bound.net in your browser. It does not call a RuneBound update endpoint from the plugin.
 
 If no cached summary exists, the panel shows:
 

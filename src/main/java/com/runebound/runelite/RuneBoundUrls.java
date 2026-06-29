@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 final class RuneBoundUrls
 {
 	private static final String HOST = "rune-bound.net";
+	private static final String HOME_URL = "https://rune-bound.net";
 	private static final String PROFILE_BASE_URL = "https://rune-bound.net/player/";
 	private static final String SUMMARY_BASE_URL = "https://rune-bound.net/api/runelite/v1/players/";
 	private static final String SEARCH_URL = "https://rune-bound.net/search";
@@ -24,6 +25,11 @@ final class RuneBoundUrls
 	static String summaryUrl(String username)
 	{
 		return SUMMARY_BASE_URL + encodePathSegment(username) + "/summary";
+	}
+
+	static String homeUrl()
+	{
+		return HOME_URL;
 	}
 
 	static String searchUrl()

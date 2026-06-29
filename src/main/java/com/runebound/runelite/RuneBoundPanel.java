@@ -31,9 +31,9 @@ public class RuneBoundPanel extends PluginPanel
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter
 		.ofPattern("yyyy-MM-dd HH:mm:ss z")
 		.withZone(ZoneId.systemDefault());
-	private static final String PRIVACY_NOTE = "Uses rune-bound.net for explicit summary lookups only. No gameplay data is sent or automated.";
+	private static final String PRIVACY_NOTE = "Explicit rune-bound.net lookups only. No gameplay data is sent or automated.";
 	private static final String NOT_CACHED_MESSAGE = "RuneBound has no cached summary for this player yet. Open RuneBound to begin tracking or update this profile.";
-	private static final String ACTION_NOTE = "Browser actions only. Summary lookups read RuneBound's cache.";
+	private static final String ACTION_NOTE = "Refresh reads RuneBound's cache. Update opens RuneBound in your browser.";
 	private static final Color BACKGROUND = ColorScheme.DARK_GRAY_COLOR;
 	private static final Color CARD_BACKGROUND = new Color(34, 38, 43);
 	private static final Color CARD_BORDER = new Color(61, 68, 76);
@@ -62,9 +62,12 @@ public class RuneBoundPanel extends PluginPanel
 	private final JButton lookupButton = new JButton("Lookup");
 	private final JButton openSearchButton = new JButton("Open RuneBound");
 	private final JButton openProfileButton = new JButton("Open Profile");
+	private final JButton updateOnRuneBoundButton = new JButton("Update on RuneBound");
 	private final JButton refreshButton = new JButton("Refresh");
-	private final JLabel summaryHeader = sectionLabel("Summary");
+	private final JLabel summaryHeader = sectionLabel("Overview");
 	private final JPanel freshnessRow = field("Freshness", freshnessValue);
+	private final JPanel lastRefreshRow = field("Last lookup", lastRefreshValue);
+	private final JPanel cooldownRow = field("Cooldown", cooldownValue);
 	private final JPanel currentTitleRow = field("Title", currentTitleValue);
 	private final JPanel tierRow = field("Tier", tierValue);
 	private final JPanel boundPointsRow = field("BoundPoints", boundPointsValue);
@@ -85,16 +88,16 @@ public class RuneBoundPanel extends PluginPanel
 		final JLabel title = new JLabel("RuneBound");
 		title.setAlignmentX(Component.LEFT_ALIGNMENT);
 		title.setForeground(TEXT_PRIMARY);
-		title.setFont(title.getFont().deriveFont(Font.BOLD, 20.0f));
+		title.setFont(title.getFont().deriveFont(Font.BOLD, 18.0f));
 		content.add(title);
-		content.add(Box.createRigidArea(new Dimension(0, 2)));
 
-		final JPanel divider = new JPanel();
-		divider.setAlignmentX(Component.LEFT_ALIGNMENT);
-		divider.setBackground(CARD_BORDER);
-		divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-		content.add(divider);
-		content.add(Box.createRigidArea(new Dimension(0, 10)));
+		final JLabel subtitle = new JLabel("Cached profile summaries");
+		subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+		subtitle.setForeground(TEXT_SECONDARY);
+		content.add(subtitle);
+		content.add(Box.createRigidArea(new Dimension(0, 8)));
+		content.add(divider());
+		content.add(Box.createRigidArea(new Dimension(0, 8)));
 
 		final JTextArea disclosure = mutedTextArea(PRIVACY_NOTE);
 		disclosure.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -128,53 +131,60 @@ public class RuneBoundPanel extends PluginPanel
 		card.setBackground(CARD_BACKGROUND);
 		card.setBorder(BorderFactory.createCompoundBorder(
 			BorderFactory.createLineBorder(CARD_BORDER),
-			BorderFactory.createEmptyBorder(10, 10, 10, 10)
+			BorderFactory.createEmptyBorder(9, 9, 9, 9)
 		));
 		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-		card.add(sectionLabel("Profile"));
+		card.add(sectionLabel("Player"));
 		card.add(field("Player", playerValue));
 		card.add(statusField());
-		card.add(field("Last summary lookup", lastRefreshValue));
-		card.add(field("Cooldown", cooldownValue));
-		card.add(freshnessRow);
-		card.add(Box.createRigidArea(new Dimension(0, 8)));
-
-		styleButton(openSearchButton);
-		styleButton(openProfileButton);
-		styleButton(refreshButton);
-		openSearchButton.setToolTipText("Open RuneBound in your browser.");
-		openProfileButton.setToolTipText("Open this player's RuneBound profile in your browser.");
-		refreshButton.setToolTipText("Request the read-only RuneBound summary for the active player.");
-		card.add(sectionLabel("Actions"));
-		actionNote.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
-		card.add(actionNote);
-		card.add(openSearchButton);
-		card.add(Box.createRigidArea(new Dimension(0, 6)));
-		card.add(openProfileButton);
-		card.add(Box.createRigidArea(new Dimension(0, 6)));
-		card.add(refreshButton);
-		card.add(Box.createRigidArea(new Dimension(0, 10)));
+		card.add(dividerWithSpacing());
 		summaryHeader.setVisible(false);
 		summaryMessage.setAlignmentX(Component.LEFT_ALIGNMENT);
 		summaryMessage.setBorder(BorderFactory.createEmptyBorder(0, 0, 9, 0));
 		summaryMessage.setVisible(false);
 		card.add(summaryHeader);
 		card.add(summaryMessage);
+		card.add(boundPointsRow);
 		card.add(currentTitleRow);
 		card.add(tierRow);
-		card.add(boundPointsRow);
 		card.add(totalLevelRow);
 		card.add(totalXpRow);
 		card.add(recentAchievementsRow);
 		hideSummaryRows();
+		card.add(dividerWithSpacing());
+		card.add(sectionLabel("Freshness"));
 		freshnessRow.setVisible(false);
+		card.add(freshnessRow);
+		card.add(lastRefreshRow);
+		card.add(cooldownRow);
+		card.add(dividerWithSpacing());
+
+		styleButton(refreshButton);
+		styleButton(openProfileButton);
+		styleButton(updateOnRuneBoundButton);
+		styleButton(openSearchButton);
+		refreshButton.setToolTipText("Request the read-only RuneBound summary for the active player.");
+		openProfileButton.setToolTipText("Open this player's RuneBound profile in your browser.");
+		updateOnRuneBoundButton.setToolTipText("Open RuneBound's search/update page in your browser. No plugin update request is sent.");
+		openSearchButton.setToolTipText("Open RuneBound in your browser.");
+		card.add(sectionLabel("Actions"));
+		actionNote.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+		card.add(actionNote);
+		card.add(refreshButton);
+		card.add(Box.createRigidArea(new Dimension(0, 6)));
+		card.add(openProfileButton);
+		card.add(Box.createRigidArea(new Dimension(0, 6)));
+		card.add(updateOnRuneBoundButton);
+		card.add(Box.createRigidArea(new Dimension(0, 6)));
+		card.add(openSearchButton);
 
 		content.add(card);
 
 		lookupButton.setEnabled(false);
 		openSearchButton.setEnabled(true);
 		openProfileButton.setEnabled(false);
+		updateOnRuneBoundButton.setEnabled(true);
 		refreshButton.setEnabled(false);
 
 		add(content, BorderLayout.NORTH);
@@ -188,6 +198,11 @@ public class RuneBoundPanel extends PluginPanel
 	void setOpenProfileAction(ActionListener listener)
 	{
 		openProfileButton.addActionListener(listener);
+	}
+
+	void setUpdateOnRuneBoundAction(ActionListener listener)
+	{
+		updateOnRuneBoundButton.addActionListener(listener);
 	}
 
 	void setManualLookupAction(ActionListener listener)
@@ -270,6 +285,7 @@ public class RuneBoundPanel extends PluginPanel
 		lookupButton.setEnabled(safeModel.isNetworkLookupsEnabled());
 		openSearchButton.setEnabled(true);
 		openProfileButton.setEnabled(safeModel.canOpenProfile());
+		updateOnRuneBoundButton.setEnabled(true);
 		refreshButton.setEnabled(hasUsername && safeModel.isNetworkLookupsEnabled());
 	}
 
@@ -361,6 +377,11 @@ public class RuneBoundPanel extends PluginPanel
 		return openSearchButton.isEnabled();
 	}
 
+	boolean isUpdateOnRuneBoundEnabled()
+	{
+		return updateOnRuneBoundButton.isEnabled();
+	}
+
 	boolean isRefreshEnabled()
 	{
 		return refreshButton.isEnabled();
@@ -419,6 +440,16 @@ public class RuneBoundPanel extends PluginPanel
 	String refreshButtonText()
 	{
 		return refreshButton.getText();
+	}
+
+	String openSearchButtonText()
+	{
+		return openSearchButton.getText();
+	}
+
+	String updateOnRuneBoundButtonText()
+	{
+		return updateOnRuneBoundButton.getText();
 	}
 
 	Color statusDotColor()
@@ -518,6 +549,26 @@ public class RuneBoundPanel extends PluginPanel
 		button.setAlignmentX(Component.LEFT_ALIGNMENT);
 		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 		button.setFocusPainted(false);
+	}
+
+	private static JPanel divider()
+	{
+		final JPanel divider = new JPanel();
+		divider.setAlignmentX(Component.LEFT_ALIGNMENT);
+		divider.setBackground(CARD_BORDER);
+		divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+		return divider;
+	}
+
+	private static JPanel dividerWithSpacing()
+	{
+		final JPanel panel = new JPanel();
+		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+		panel.setBackground(CARD_BACKGROUND);
+		panel.setBorder(BorderFactory.createEmptyBorder(2, 0, 9, 0));
+		panel.add(divider());
+		return panel;
 	}
 
 	private static PanelStatus resolveStatus(
