@@ -1,0 +1,28 @@
+.gradle
+build
+.idea/
+*.iml
+.project
+.settings/
+.classpath
+nbactions.xml
+nb-configuration.xml
+nbproject/
+out/
+target/
+
+# Local RuneLite/client state and credentials must never be committed.
+.runelite/
+**/.runelite/
+
+# Local environment files and private credentials.
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*service-account*.json
+*service_account*.json
+*serviceAccount*.json
