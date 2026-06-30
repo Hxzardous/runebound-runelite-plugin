@@ -114,7 +114,7 @@ public class RuneBoundSafetyTest
 	public void summaryUrlUsesReadOnlyRuneBoundEndpoint()
 	{
 		assertEquals(
-			"https://rune-bound.net/api/runelite/v1/players/Name%20With%20Space/summary",
+			"https://rune-bound.net/api/runelite/v1/players/Name%20With%20Space/summary?client=runelite-v1",
 			RuneBoundUrls.summaryUrl("Name With Space")
 		);
 		try
@@ -149,7 +149,7 @@ public class RuneBoundSafetyTest
 		final AtomicReference<RuneBoundSummaryResult> result = new AtomicReference<>();
 		new RuneBoundSummaryClient(transport).requestSummary("SampleUser", result::set);
 
-		assertEquals("https://rune-bound.net/api/runelite/v1/players/SampleUser/summary", capturedUrl.get());
+		assertEquals("https://rune-bound.net/api/runelite/v1/players/SampleUser/summary?client=runelite-v1", capturedUrl.get());
 		assertNotNull(result.get());
 		assertTrue(result.get().isNetworkAttempted());
 		assertEquals(RuneBoundSummaryStatus.OK, result.get().getStatus());
@@ -233,6 +233,57 @@ public class RuneBoundSafetyTest
 		assertEquals("Example Achievement", model.getRecentAchievements());
 		assertEquals("Fresh", model.getFreshness());
 		assertTrue(model.canOpenProfile());
+	}
+
+	@Test
+	public void contractStyleSummaryWithoutRootAliasesParsesProfileFields()
+	{
+		final RuneBoundSummaryResponse response = resultFromHttpStatus(200, contractStyleSummaryJson("ok", "trusted_cached")).getResponse();
+		assertNotNull(response);
+
+		final RuneBoundPanelModel model = response.toPanelModel(
+			"Broxklyn",
+			response.statusMessage(),
+			Instant.parse("2026-06-24T12:02:00Z"),
+			Duration.ZERO,
+			true
+		);
+
+		assertEquals(RuneBoundSummaryStatus.OK, response.mappedStatus());
+		assertEquals("Broxklyn", model.getPlayer());
+		assertEquals("broxklyn", model.getNormalizedUsername());
+		assertEquals("https://rune-bound.net/player/Broxklyn", model.getProfileUrl());
+		assertEquals("10 HP Paragon", model.getCurrentTitle());
+		assertEquals("Ascendant Bound", model.getTier());
+		assertEquals("35,570", model.getBoundPoints());
+		assertEquals("2,277", model.getTotalLevel());
+		assertEquals("460,000,000", model.getTotalXp());
+		assertEquals("First Blood\nBound Route Completed\nTier Promotion", model.getRecentAchievements());
+		assertEquals("Fresh", model.getFreshness());
+		assertTrue(model.canOpenProfile());
+	}
+
+	@Test
+	public void staleContractSummaryDisplaysProfileFieldsInsteadOfUnavailable()
+	{
+		final RuneBoundSummaryResponse response = resultFromHttpStatus(200, contractStyleSummaryJson("stale", "stale_cached")).getResponse();
+		assertNotNull(response);
+
+		final RuneBoundPanelModel model = response.toPanelModel(
+			"Broxklyn",
+			response.statusMessage(),
+			Instant.parse("2026-06-24T12:02:00Z"),
+			Duration.ZERO,
+			true
+		);
+
+		assertEquals(RuneBoundSummaryStatus.STALE, response.mappedStatus());
+		assertEquals("Cached RuneBound profile may be stale", response.statusMessage());
+		assertEquals("Broxklyn", model.getPlayer());
+		assertEquals("10 HP Paragon", model.getCurrentTitle());
+		assertEquals("Ascendant Bound", model.getTier());
+		assertEquals("35,570", model.getBoundPoints());
+		assertEquals("Stale", model.getFreshness());
 	}
 
 	@Test
@@ -393,6 +444,33 @@ public class RuneBoundSafetyTest
 	}
 
 	@Test
+	public void transientRefreshFailureKeepsPreviousValidSummaryAvailable()
+	{
+		final RuneBoundSummaryResult previous = resultFromHttpStatus(200, okSummaryJson());
+
+		assertTrue(RuneBoundPlugin.shouldKeepCachedResultAfterFailure(
+			previous,
+			resultFromHttpStatus(404, genericNotFoundJson())
+		));
+		assertTrue(RuneBoundPlugin.shouldKeepCachedResultAfterFailure(
+			previous,
+			RuneBoundSummaryResult.failedBeforeNetwork()
+		));
+		assertTrue(RuneBoundPlugin.shouldKeepCachedResultAfterFailure(
+			previous,
+			resultFromHttpStatus(503, "{}")
+		));
+		assertFalse(RuneBoundPlugin.shouldKeepCachedResultAfterFailure(
+			previous,
+			resultFromHttpStatus(404, notCachedJson())
+		));
+		assertFalse(RuneBoundPlugin.shouldKeepCachedResultAfterFailure(
+			null,
+			resultFromHttpStatus(404, genericNotFoundJson())
+		));
+	}
+
+	@Test
 	public void backoffPolicyCapsAtOneHour()
 	{
 		assertEquals(Duration.ZERO, RuneBoundBackoffPolicy.delayForFailureCount(0));
@@ -442,7 +520,7 @@ public class RuneBoundSafetyTest
 		final CompletableFuture<RuneBoundSummaryResult> result = new CompletableFuture<>();
 
 		new RuneBoundOkHttpTransport(client, GSON).getJson(
-			"https://rune-bound.net/api/runelite/v1/players/RuneBounder/summary",
+			"https://rune-bound.net/api/runelite/v1/players/RuneBounder/summary?client=runelite-v1",
 			result::complete
 		);
 
@@ -815,6 +893,40 @@ public class RuneBoundSafetyTest
 			"{\"id\":\"achievement-id\",\"title\":\"Example Achievement\",\"difficulty\":\"elite\",\"verifiedAt\":\"2026-06-24T12:00:00.000Z\"}",
 			items.toString()
 		);
+	}
+
+	private static String contractStyleSummaryJson(String status, String trustLabel)
+	{
+		return "{"
+			+ "\"schemaVersion\":\"runebound.runelite.profile.summary.v1\","
+			+ "\"source\":\"publicProfileResponseCache\","
+			+ "\"safeToDisplay\":true,"
+			+ "\"status\":{\"code\":\"" + status + "\",\"label\":\"Cached RuneBound profile\",\"reason\":null},"
+			+ "\"player\":{"
+			+ "\"username\":\"Broxklyn\","
+			+ "\"displayName\":\"Broxklyn\","
+			+ "\"normalizedUsername\":\"broxklyn\","
+			+ "\"profileUrl\":\"https://rune-bound.net/player/Broxklyn\","
+			+ "\"account\":{\"selectedAccountType\":\"MAIN\",\"womType\":\"regular\",\"womBuild\":\"main\",\"combatLevel\":126}"
+			+ "},"
+			+ "\"summary\":{"
+			+ "\"currentTitle\":{\"id\":\"title-ten-hp-paragon\",\"name\":\"10 HP Paragon\",\"rarity\":\"legendary\"},"
+			+ "\"tier\":{\"name\":\"Ascendant Bound\",\"rank\":6},"
+			+ "\"boundPoints\":{\"lifetimeEarned\":35570,\"available\":35570},"
+			+ "\"stats\":{\"totalLevel\":2277,\"totalXp\":460000000,\"totalEhp\":1500.5},"
+			+ "\"recentAchievements\":{\"available\":true,\"countInResponse\":3,\"items\":["
+			+ "{\"id\":\"one\",\"title\":\"First Blood\",\"difficulty\":\"easy\",\"verifiedAt\":\"2026-06-24T12:00:00.000Z\"},"
+			+ "{\"id\":\"two\",\"title\":\"Bound Route Completed\",\"difficulty\":\"hard\",\"verifiedAt\":\"2026-06-24T12:00:00.000Z\"},"
+			+ "{\"id\":\"three\",\"title\":\"Tier Promotion\",\"difficulty\":\"elite\",\"verifiedAt\":\"2026-06-24T12:00:00.000Z\"}"
+			+ "]}"
+			+ "},"
+			+ "\"freshness\":{"
+			+ "\"trustLabel\":\"" + trustLabel + "\","
+			+ "\"wom\":{\"source\":\"wise_old_man\",\"updatedAt\":\"2026-06-24T12:00:00.000Z\",\"label\":\"WOM Aging\",\"ageSeconds\":86400},"
+			+ "\"runebound\":{\"cachedAt\":\"2026-06-24T12:02:00.000Z\",\"label\":\"RB Aging\",\"ageSeconds\":120}"
+			+ "},"
+			+ "\"client\":{\"recommendedTtlSeconds\":900,\"minimumPollIntervalSeconds\":1800,\"mayOpenProfileUrl\":true,\"mayRequestRefreshFromThisEndpoint\":false}"
+			+ "}";
 	}
 
 	private static String notCachedJson()

@@ -211,9 +211,35 @@ public class RuneBoundPlugin extends Plugin
 				normalizedUsername,
 				result.isNetworkAttempted()
 			);
+
+			final RuneBoundSummaryResult latestCachedResult = summaryCache.latestResult(normalizedUsername);
+			if (shouldKeepCachedResultAfterFailure(latestCachedResult, result))
+			{
+				applySummaryResult(normalizedUsername, latestCachedResult, result.getMessage());
+				return;
+			}
+
 			summaryCache.put(normalizedUsername, result, clock.instant());
 			applySummaryResult(normalizedUsername, result, result.getMessage());
 		});
+	}
+
+	static boolean shouldKeepCachedResultAfterFailure(RuneBoundSummaryResult cachedResult, RuneBoundSummaryResult refreshResult)
+	{
+		if (cachedResult == null || cachedResult.getResponse() == null || refreshResult == null)
+		{
+			return false;
+		}
+
+		switch (refreshResult.getStatus())
+		{
+			case OFFLINE:
+			case RATE_LIMITED:
+			case SERVER_ERROR:
+				return true;
+			default:
+				return false;
+		}
 	}
 
 	private void refreshCurrentUsername()

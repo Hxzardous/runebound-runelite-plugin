@@ -18,10 +18,10 @@ Network summary lookups are disabled by default. If enabled, the plugin may send
 
 RuneLite may show a third-party network warning when summary lookups are enabled. That warning is expected for Plugin Hub plugins that can contact a non-RuneLite service.
 
-The summary endpoint is:
+The plugin requests the read-only summary endpoint as:
 
 ```text
-GET https://rune-bound.net/api/runelite/v1/players/{username}/summary
+GET https://rune-bound.net/api/runelite/v1/players/{username}/summary?client=runelite-v1
 ```
 
 The plugin does not:

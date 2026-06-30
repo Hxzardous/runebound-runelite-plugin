@@ -233,6 +233,44 @@ public class RuneBoundPanelTest
 	}
 
 	@Test
+	public void failedRefreshStatusCanKeepPreviouslyLoadedProfileDetailsVisible() throws Exception
+	{
+		final RuneBoundPanel panel = new RuneBoundPanel();
+		SwingUtilities.invokeAndWait(() -> panel.showModel(RuneBoundPanelModel.builder()
+			.player("RuneBounder")
+			.normalizedUsername("runebounder")
+			.profileUrl("https://rune-bound.net/player/RuneBounder")
+			.currentTitle("10 HP Paragon")
+			.tier("Ascendant Bound")
+			.boundPoints("35,570")
+			.totalLevel("2,277")
+			.totalXp("460,000,000")
+			.recentAchievements("Example Achievement")
+			.freshness("Stale")
+			.status("RuneBound summary endpoint unavailable")
+			.networkLookupsEnabled(true)
+			.openProfileEnabled(true)
+			.build()));
+
+		assertEquals("RuneBounder", panel.displayedPlayer());
+		assertEquals("Error", panel.displayedStatus());
+		assertEquals("Summary endpoint unavailable.", panel.displayedStatusNote());
+		assertTrue(panel.isCurrentTitleVisible());
+		assertTrue(panel.isTierVisible());
+		assertTrue(panel.isBoundPointsVisible());
+		assertTrue(panel.isTotalLevelVisible());
+		assertTrue(panel.isTotalXpVisible());
+		assertTrue(panel.isRecentAchievementsVisible());
+		assertEquals("10 HP Paragon", panel.displayedCurrentTitle());
+		assertEquals("Ascendant Bound", panel.displayedTier());
+		assertEquals("35,570", panel.displayedBoundPoints());
+		assertEquals("2,277", panel.displayedTotalLevel());
+		assertEquals("460,000,000", panel.displayedTotalXp());
+		assertEquals("Example Achievement", panel.displayedRecentAchievements());
+		assertTrue(panel.isOpenProfileEnabled());
+	}
+
+	@Test
 	public void unsafeProfileLinkStateUsesClearCopy() throws Exception
 	{
 		final RuneBoundPanel panel = updatedPanel(

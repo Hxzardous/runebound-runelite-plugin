@@ -16,6 +16,7 @@ final class RuneBoundSummaryResponse
 	static final String SCHEMA_VERSION = "runebound.runelite.profile.summary.v1";
 	private static final int MAX_RECENT_ACHIEVEMENTS = 3;
 	private static final int MAX_STRING_LENGTH = 160;
+	private static final int MAX_URL_LENGTH = 512;
 
 	private final String statusCode;
 	private final String statusLabel;
@@ -96,7 +97,7 @@ final class RuneBoundSummaryResponse
 			}
 
 			final JsonObject root = element.getAsJsonObject();
-			if (!SCHEMA_VERSION.equals(string(root, "schemaVersion")))
+			if (!SCHEMA_VERSION.equals(text(root, "schemaVersion")))
 			{
 				return null;
 			}
@@ -116,24 +117,24 @@ final class RuneBoundSummaryResponse
 			final JsonObject client = object(root, "client");
 
 			return new RuneBoundSummaryResponse(
-				coalesce(string(status, "code"), "server_error"),
-				coalesce(string(status, "label"), "RuneBound summary unavailable"),
+				coalesce(text(status, "code"), "server_error"),
+				coalesce(text(status, "label"), "RuneBound summary unavailable"),
 				booleanValue(root, "safeToDisplay"),
-				coalesce(string(root, "displayName"), string(player, "displayName")),
-				coalesce(string(root, "normalizedUsername"), string(player, "normalizedUsername")),
-				coalesce(string(root, "profileUrl"), string(player, "profileUrl")),
-				coalesce(string(root, "accountType"), string(account, "selectedAccountType")),
-				coalesce(string(root, "buildType"), string(account, "womBuild")),
-				string(currentTitle, "name"),
-				string(tier, "name"),
-				coalesce(string(object(summary, "badge"), "name"), string(object(summary, "currentBadge"), "name")),
+				coalesce(text(root, "displayName"), text(player, "displayName")),
+				coalesce(text(root, "normalizedUsername"), text(player, "normalizedUsername")),
+				coalesce(urlText(root, "profileUrl"), urlText(player, "profileUrl")),
+				coalesce(text(root, "accountType"), text(account, "selectedAccountType")),
+				coalesce(text(root, "buildType"), text(account, "womBuild")),
+				text(currentTitle, "name"),
+				text(tier, "name"),
+				coalesce(text(object(summary, "badge"), "name"), text(object(summary, "currentBadge"), "name")),
 				coalesce(number(boundPoints, "lifetimeEarned"), number(boundPoints, "available")),
 				number(stats, "totalLevel"),
 				number(stats, "totalXp"),
 				achievementTitles(recentAchievements),
-				string(freshness, "trustLabel"),
-				string(wom, "label"),
-				string(runebound, "label"),
+				text(freshness, "trustLabel"),
+				text(wom, "label"),
+				text(runebound, "label"),
 				booleanValue(client, "mayOpenProfileUrl")
 			);
 		}
@@ -363,7 +364,7 @@ final class RuneBoundSummaryResponse
 				continue;
 			}
 
-			final String title = string(itemElement.getAsJsonObject(), "title");
+			final String title = text(itemElement.getAsJsonObject(), "title");
 			if (title != null)
 			{
 				titles.add(title);
@@ -388,7 +389,17 @@ final class RuneBoundSummaryResponse
 		return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
 	}
 
-	private static String string(JsonObject object, String field)
+	private static String text(JsonObject object, String field)
+	{
+		return boundedText(object, field, MAX_STRING_LENGTH);
+	}
+
+	private static String urlText(JsonObject object, String field)
+	{
+		return boundedText(object, field, MAX_URL_LENGTH);
+	}
+
+	private static String boundedText(JsonObject object, String field, int maxLength)
 	{
 		if (object == null)
 		{
@@ -403,7 +414,7 @@ final class RuneBoundSummaryResponse
 
 		final String value = element.getAsString();
 		final String normalized = RuneBoundUsername.normalize(value);
-		if (normalized == null || normalized.length() > MAX_STRING_LENGTH)
+		if (normalized == null || normalized.length() > maxLength)
 		{
 			return null;
 		}

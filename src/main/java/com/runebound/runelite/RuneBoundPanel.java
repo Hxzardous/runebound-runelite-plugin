@@ -637,9 +637,12 @@ public class RuneBoundPanel extends PluginPanel
 
 	private static void styleInlineButton(JButton button)
 	{
-		button.setMinimumSize(new Dimension(68, 30));
-		button.setPreferredSize(new Dimension(68, 30));
-		button.setMaximumSize(new Dimension(68, 30));
+		// Wide enough that the "Refresh" label is never clipped across look-and-feels/fonts.
+		final Dimension size = new Dimension(92, 30);
+		button.setMinimumSize(size);
+		button.setPreferredSize(size);
+		button.setMaximumSize(size);
+		button.setMargin(new Insets(0, 6, 0, 6));
 		button.setFocusPainted(false);
 		button.setHorizontalAlignment(SwingConstants.CENTER);
 	}
@@ -822,6 +825,10 @@ public class RuneBoundPanel extends PluginPanel
 		area.setWrapStyleWord(true);
 		area.setOpaque(false);
 		area.setForeground(TEXT_PRIMARY);
+		// Keep a consistent LEFT alignment in BoxLayout columns. A stray CENTER-aligned
+		// child makes BoxLayout reserve center space and collapse sibling rows (e.g. the
+		// lookup field) below their available width.
+		area.setAlignmentX(Component.LEFT_ALIGNMENT);
 		return area;
 	}
 

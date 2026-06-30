@@ -22,7 +22,7 @@ final class RuneBoundUrls
 
 	static String summaryUrl(String username)
 	{
-		return SUMMARY_BASE_URL + encodePathSegment(username) + "/summary";
+		return SUMMARY_BASE_URL + encodePathSegment(username) + "/summary?client=runelite-v1";
 	}
 
 	static boolean isSafeProfileUrl(String url)
